@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Squeek Pet: a pixel hamster in sync with Squeektoshi</title>
+    <meta name="description" content="An unofficial fan virtual-pet game. Your pixel hamster runs and naps in sync with Squeektoshi, the real hamster whose wheel powers Squeekchain." />
+    <meta property="og:title" content="Squeek Pet" />
+    <meta property="og:description" content="Your pixel hamster runs and naps in sync with Squeektoshi's real wheel." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="./og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#fbf4e9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f1813" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body data-adopted="no">
+    <a class="skip" href="#view">Skip to content</a>
+    <header class="top">
+      <a class="brand" href="#/home"><img src="./favicon.svg" alt="" width="28" height="28" /><span>Squeek Pet</span></a>
+      <div class="utils">
+        <span class="seeds" aria-label="Seeds balance"><span class="seed-dot" aria-hidden="true"></span><span id="seeds">0</span> Seeds</span>
+        <button class="icon-btn" id="sound" data-act="sound" aria-pressed="false" aria-label="Sound">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 6h3l4-3v10l-4-3H2z"/><path class="wave" fill="currentColor" d="M11 5h1v6h-1zM13 3h1v10h-1z"/></svg>
+        </button>
+      </div>
+    </header>
+    <nav class="tabs" aria-label="Screens">
+      <a href="#/home">Home</a>
+      <a href="#/shop">Shop</a>
+      <a href="#/quests">Quests</a>
+      <a href="#/wardrobe">Wardrobe</a>
+      <a href="#/about">About</a>
+    </nav>
+    <main id="view" tabindex="-1"></main>
+    <p id="toast" class="toast" role="status" aria-live="polite"></p>
+    <noscript><p class="wrap">Squeek Pet needs JavaScript to run.</p></noscript>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

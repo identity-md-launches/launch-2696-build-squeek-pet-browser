@@ -1,0 +1,4 @@
+node_modules/
+test/scratch/
+*.log
+.DS_Store
