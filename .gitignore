@@ -2,3 +2,10 @@ node_modules/
 test/scratch/
 *.log
 .DS_Store
+
+# Submission documentation budget: only these paths, <= 40 KiB combined.
+# validation.md <= 24 KiB; design-guidance-LICENSE.txt <= 16 KiB.
+!artifacts/
+artifacts/*
+!artifacts/validation.md
+!artifacts/design-guidance-LICENSE.txt

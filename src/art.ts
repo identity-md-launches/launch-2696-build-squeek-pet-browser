@@ -15,6 +15,7 @@ export interface Scene {
   skin: string;
   bg: string;
   festival: boolean;
+  reducedMotion?: boolean;
 }
 
 // Left half of a front-facing hamster; each row is mirrored to 16 px.
@@ -179,6 +180,12 @@ export const STAGE_SCALE: Record<StageId, number> = { pup: 3, junior: 4, adult: 
 
 /** Draw one frame. `t` is ms; `frame` advances the pose; `angle` turns the wheel. */
 export function drawScene(ctx: CanvasRenderingContext2D, sc: Scene, t: number, frame: number, angle: number) {
+  if (sc.reducedMotion) {
+    // A gentle two-frame walk, still wheel and background, no confetti.
+    t = 0;
+    angle = 0;
+    if (sc.pose !== 'run') frame = 1;
+  }
   ctx.clearRect(0, 0, W, H);
   drawBackground(ctx, sc.bg, t);
   drawWheel(ctx, sc.skin, angle);
@@ -189,7 +196,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, sc: Scene, t: number, f
   const spriteW = 16 * s;
   const spriteH = 13 * s;
   const running = sc.pose === 'run';
-  const bob = running ? (frame % 2) * s : sc.pose === 'happy' ? -((frame % 4) < 2 ? s : 0) : 0;
+  const bob = sc.reducedMotion ? 0 : running ? (frame % 2) * s : sc.pose === 'happy' ? -((frame % 4) < 2 ? s : 0) : 0;
   const footY = running ? 72 + 46 - 4 : 124;
   const x = running ? 176 - spriteW / 2 : 84 - spriteW / 2;
   const y = footY - spriteH + bob;
@@ -225,7 +232,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, sc: Scene, t: number, f
     drawGrid(ctx, ['.s.', 'sds', 'sds', '.s.'], { s: '#3b3b3b', d: '#d9d3c0' }, x + 7 * s + 1, y + 8 * s + (frame % 2), 1);
   }
 
-  if (sc.festival) {
+  if (sc.festival && !sc.reducedMotion) {
     const colorsF = ['#ef476f', '#ffd166', '#06d6a0', '#4f86e8'];
     for (let i = 0; i < 14; i++) px(ctx, (i * 17 + frame * 3) % W, (i * 23 + frame * 5) % 60, 2, 2, colorsF[i % 4]);
   }

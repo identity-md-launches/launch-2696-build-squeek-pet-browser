@@ -177,10 +177,10 @@ describe('festivals', () => {
 
 describe('growth and save', () => {
   it('stages by XP', () => {
-    expect(stageFor(0).stage.name).toBe('Pup');
-    expect(stageFor(150).stage.name).toBe('Junior');
-    expect(stageFor(600).stage.name).toBe('Adult');
-    expect(stageFor(5000).stage.name).toBe('Wheel Legend');
+    expect(stageFor(0).stage.id).toBe('pup');
+    expect(stageFor(150).stage.id).toBe('junior');
+    expect(stageFor(600).stage.id).toBe('adult');
+    expect(stageFor(5000).stage.id).toBe('legend');
   });
   it('round-trips a save code and rejects junk', () => {
     const s = newSave('Pip Ümlaut', 'cocoa', T);

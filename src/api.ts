@@ -73,6 +73,21 @@ export interface LiveStats {
   days: ActivityDay[];
   peakSpeedMmPerSecond: number | null;
   maxDailyDistanceMm: number | null;
+  records: {
+    peakSpeed: LiveRecord;
+    maxDailyDistance: LiveRecord;
+    peakRpm: LiveRecord;
+    mostWorkHalfHour: LiveRecord;
+  };
+}
+
+export interface LiveRecord { value: number | null; occurredAt: string | null }
+
+function parseRecord(raw: any): LiveRecord {
+  if (unavailable(raw)) return { value: null, occurredAt: null };
+  const object = raw && typeof raw === 'object';
+  const at = object && typeof raw.occurredAt === 'string' && Number.isFinite(Date.parse(raw.occurredAt)) ? raw.occurredAt : null;
+  return { value: num(object ? raw.value : raw), occurredAt: at };
 }
 
 export function parseStats(raw: any): LiveStats | null {
@@ -88,15 +103,22 @@ export function parseStats(raw: any): LiveStats | null {
           buckets: Array.isArray(d.buckets)
             ? d.buckets
                 .map((b: any) => ({ startMinuteUtc: num(b?.startMinuteUtc), workUnits: num(b?.workUnits) }))
-                .filter((b: any) => b.startMinuteUtc !== null)
+                .filter((b: any) => b.startMinuteUtc !== null && Number.isInteger(b.startMinuteUtc) && b.startMinuteUtc >= 0 && b.startMinuteUtc < 1440)
             : [],
         }))
     : [];
   const rec = unavailable(raw.records) ? null : raw.records;
+  const records = {
+    peakSpeed: parseRecord(rec?.peakObservedSpeedMmPerSecond),
+    maxDailyDistance: parseRecord(rec?.maximumDailyDistanceMm),
+    peakRpm: parseRecord(rec?.peakObservedRpmMilli),
+    mostWorkHalfHour: parseRecord(rec?.mostWorkHalfHour),
+  };
   return {
     days,
-    peakSpeedMmPerSecond: num(rec?.peakObservedSpeedMmPerSecond),
-    maxDailyDistanceMm: num(rec?.maximumDailyDistanceMm),
+    peakSpeedMmPerSecond: records.peakSpeed.value,
+    maxDailyDistanceMm: records.maxDailyDistance.value,
+    records,
   };
 }
 
@@ -104,7 +126,12 @@ export function parseEvents(raw: any): MilestoneEvent[] | null {
   if (!raw || typeof raw !== 'object' || unavailable(raw) || !Array.isArray(raw.events)) return null;
   return raw.events
     .filter((e: any) => e && (typeof e.id === 'string' || typeof e.id === 'number') && typeof e.type === 'string')
-    .map((e: any) => ({ id: String(e.id), type: e.type, occurredAt: String(e.occurredAt ?? '') }));
+    .map((e: any) => ({ id: String(e.id), type: e.type, occurredAt: String(e.occurredAt ?? ''), payload: {
+      thresholdDistanceMm: num(e.payload?.thresholdDistanceMm),
+      recordMmPerSecond: num(e.payload?.recordMmPerSecond),
+      days: num(e.payload?.days),
+      minimumDailyDistanceMm: num(e.payload?.minimumDailyDistanceMm),
+    } }));
 }
 
 export type FetchResult = { ok: true; data: unknown } | { ok: false; retryAfterMs: number | null; reason: 'rate' | 'http' | 'network' | 'timeout' };

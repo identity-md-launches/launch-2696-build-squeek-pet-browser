@@ -1,5 +1,6 @@
 // Pure game rules. Nothing here touches the DOM, the clock or the network:
 // every function takes "now" and data in, and returns new values out.
+import { languageFor, translate, type Language } from './i18n';
 
 export const HOUR = 3_600_000;
 export const MINUTE = 60_000;
@@ -164,6 +165,18 @@ export function bucketStart(date: string, startMinuteUtc: number): number {
   return midnight + (startMinuteUtc >= 720 ? 0 : DAY) + startMinuteUtc * MINUTE;
 }
 
+/** Start of the newest known bucket with work, not the last zero/unknown bucket.
+ * Half-hour granularity: this is an estimate, never an invented exact run time. */
+export function lastRanAt(days: ActivityDay[], now: number): number | null {
+  let latest: number | null = null;
+  for (const day of days) for (const b of day.buckets) {
+    if (b.workUnits === null || !Number.isFinite(b.workUnits) || b.workUnits <= 0) continue;
+    const at = bucketStart(day.date, b.startMinuteUtc);
+    if (Number.isFinite(at) && at <= now && (latest === null || at > latest)) latest = at;
+  }
+  return latest;
+}
+
 /**
  * Work units the real wheel logged between `from` and `to` (capped at 12 h),
  * prorating buckets that only partly overlap. Returns null when no bucket
@@ -198,10 +211,10 @@ export function awaySeeds(passes: number, awayMs: number): number {
 // ---------- Growth ----------
 
 export const STAGES = [
-  { id: 'pup', name: 'Pup', xp: 0 },
-  { id: 'junior', name: 'Junior', xp: 150 },
-  { id: 'adult', name: 'Adult', xp: 600 },
-  { id: 'legend', name: 'Wheel Legend', xp: 2000 },
+  { id: 'pup', xp: 0 },
+  { id: 'junior', xp: 150 },
+  { id: 'adult', xp: 600 },
+  { id: 'legend', xp: 2000 },
 ] as const;
 export type StageId = (typeof STAGES)[number]['id'];
 
@@ -223,30 +236,28 @@ export type ItemKind = 'food' | 'toy' | 'hat' | 'skin' | 'bg';
 export interface Item {
   id: string;
   kind: ItemKind;
-  name: string;
   price: number;
   effect?: Partial<Stats>;
-  note: string;
 }
 
 export const ITEMS: Item[] = [
-  { id: 'sunflower', kind: 'food', name: 'Sunflower seed', price: 4, effect: { hunger: -15, happiness: 2 }, note: 'A light snack' },
-  { id: 'carrot', kind: 'food', name: 'Carrot', price: 10, effect: { hunger: -25, happiness: 5, energy: 5 }, note: 'Crunchy and filling' },
-  { id: 'mealworm', kind: 'food', name: 'Mealworm', price: 22, effect: { hunger: -30, happiness: 12, energy: 10 }, note: 'A rare treat' },
-  { id: 'ball', kind: 'toy', name: 'Ball', price: 30, effect: { happiness: 15, energy: -8, hunger: 3 }, note: 'Roll, chase, repeat' },
-  { id: 'chew', kind: 'toy', name: 'Chew stick', price: 45, effect: { happiness: 12, energy: -4, cleanliness: 4 }, note: 'Good for little teeth' },
-  { id: 'tunnel', kind: 'toy', name: 'Tunnel', price: 70, effect: { happiness: 22, energy: -10, hunger: 4 }, note: 'In one end, out the other' },
-  { id: 'hat-party', kind: 'hat', name: 'Party hat', price: 80, note: 'For every day' },
-  { id: 'hat-flower', kind: 'hat', name: 'Flower crown', price: 120, note: 'Daisies, of course' },
-  { id: 'hat-top', kind: 'hat', name: 'Tiny top hat', price: 200, note: 'Very formal' },
-  { id: 'skin-classic', kind: 'skin', name: 'Classic wheel', price: 0, note: 'The one you started with' },
-  { id: 'skin-sunset', kind: 'skin', name: 'Sunset wheel', price: 100, note: 'Warm orange rim' },
-  { id: 'skin-mint', kind: 'skin', name: 'Mint wheel', price: 100, note: 'Cool and fresh' },
-  { id: 'skin-galaxy', kind: 'skin', name: 'Galaxy wheel', price: 250, note: 'Stars in every spoke' },
-  { id: 'bg-cozy', kind: 'bg', name: 'Cozy cage', price: 0, note: 'Wood shavings and warm walls' },
-  { id: 'bg-meadow', kind: 'bg', name: 'Meadow', price: 120, note: 'Grass and blue sky' },
-  { id: 'bg-night', kind: 'bg', name: 'Night sky', price: 150, note: 'Stars for napping' },
-  { id: 'bg-library', kind: 'bg', name: 'Library', price: 150, note: 'Shelves of tiny books' },
+  { id: 'sunflower', kind: 'food', price: 4, effect: { hunger: -15, happiness: 2 } },
+  { id: 'carrot', kind: 'food', price: 10, effect: { hunger: -25, happiness: 5, energy: 5 } },
+  { id: 'mealworm', kind: 'food', price: 22, effect: { hunger: -30, happiness: 12, energy: 10 } },
+  { id: 'ball', kind: 'toy', price: 30, effect: { happiness: 15, energy: -8, hunger: 3 } },
+  { id: 'chew', kind: 'toy', price: 45, effect: { happiness: 12, energy: -4, cleanliness: 4 } },
+  { id: 'tunnel', kind: 'toy', price: 70, effect: { happiness: 22, energy: -10, hunger: 4 } },
+  { id: 'hat-party', kind: 'hat', price: 80 },
+  { id: 'hat-flower', kind: 'hat', price: 120 },
+  { id: 'hat-top', kind: 'hat', price: 200 },
+  { id: 'skin-classic', kind: 'skin', price: 0 },
+  { id: 'skin-sunset', kind: 'skin', price: 100 },
+  { id: 'skin-mint', kind: 'skin', price: 100 },
+  { id: 'skin-galaxy', kind: 'skin', price: 250 },
+  { id: 'bg-cozy', kind: 'bg', price: 0 },
+  { id: 'bg-meadow', kind: 'bg', price: 120 },
+  { id: 'bg-night', kind: 'bg', price: 150 },
+  { id: 'bg-library', kind: 'bg', price: 150 },
 ];
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id);
 
@@ -270,7 +281,6 @@ export type QuestId = 'distance2km' | 'newBlock' | 'runBeside' | 'napTogether' |
 
 export interface QuestDef {
   id: QuestId;
-  title: string;
   target: number;
   unit: string;
   reward: number;
@@ -278,14 +288,14 @@ export interface QuestDef {
 }
 
 export const QUESTS: Record<QuestId, QuestDef> = {
-  distance2km: { id: 'distance2km', title: 'Squeektoshi runs 2 km this Squeek day', target: 2_000_000, unit: 'mm', reward: 60, live: true },
-  newBlock: { id: 'newBlock', title: 'Be here when a new Squeek block lands', target: 1, unit: 'block', reward: 40, live: true },
-  runBeside: { id: 'runBeside', title: 'Run beside Squeektoshi for 200 passes', target: 200, unit: 'passes', reward: 50, live: true },
-  napTogether: { id: 'napTogether', title: 'Nap together for 10 minutes', target: 10, unit: 'min', reward: 30, live: true },
-  pet5: { id: 'pet5', title: 'Pet your hamster 5 times', target: 5, unit: 'pets', reward: 20, live: false },
-  feed3: { id: 'feed3', title: 'Feed your hamster 3 times', target: 3, unit: 'meals', reward: 25, live: false },
-  clean1: { id: 'clean1', title: 'Clean the cage once', target: 1, unit: 'clean', reward: 15, live: false },
-  play2: { id: 'play2', title: 'Play together 2 times', target: 2, unit: 'games', reward: 25, live: false },
+  distance2km: { id: 'distance2km', target: 2_000_000, unit: 'mm', reward: 60, live: true },
+  newBlock: { id: 'newBlock', target: 1, unit: 'block', reward: 40, live: true },
+  runBeside: { id: 'runBeside', target: 200, unit: 'passes', reward: 50, live: true },
+  napTogether: { id: 'napTogether', target: 10, unit: 'min', reward: 30, live: true },
+  pet5: { id: 'pet5', target: 5, unit: 'pets', reward: 20, live: false },
+  feed3: { id: 'feed3', target: 3, unit: 'meals', reward: 25, live: false },
+  clean1: { id: 'clean1', target: 1, unit: 'clean', reward: 15, live: false },
+  play2: { id: 'play2', target: 2, unit: 'games', reward: 25, live: false },
 };
 
 const LIVE_QUESTS: QuestId[] = ['distance2km', 'newBlock', 'runBeside', 'napTogether'];
@@ -346,6 +356,12 @@ export interface MilestoneEvent {
   id: string;
   type: string;
   occurredAt: string;
+  payload?: {
+    thresholdDistanceMm: number | null;
+    recordMmPerSecond: number | null;
+    days: number | null;
+    minimumDailyDistanceMm: number | null;
+  };
 }
 
 export const FESTIVAL_TYPES = new Set([
@@ -370,16 +386,19 @@ export const festivalActive = (f: FestivalState, now: number) => now < f.until;
  * last one seen and has an id we have not seen. On the very first fetch only
  * an event from the last hour counts, so old records don't start festivals.
  */
-export function processEvents(f: FestivalState, events: MilestoneEvent[], now: number): { state: FestivalState; started: MilestoneEvent | null } {
+export function processEvents(f: FestivalState, events: MilestoneEvent[], now: number, bornAt = -Infinity): { state: FestivalState; started: MilestoneEvent | null } {
   const qualifying = events
-    .filter((e) => FESTIVAL_TYPES.has(e.type) && Number.isFinite(Date.parse(e.occurredAt)))
+    .filter((e) => FESTIVAL_TYPES.has(e.type) && Number.isFinite(Date.parse(e.occurredAt)) && Date.parse(e.occurredAt) <= now)
     .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt));
   let watermark = f.watermark;
+  // Freeze the eligibility boundary for the entire batch. Updating it inside
+  // the loop lets the second old event through on a first fetch/adoption.
+  const cutoff = f.watermark ?? now - FESTIVAL_MS;
   const seen = new Set(f.seenIds);
   let started: MilestoneEvent | null = null;
   for (const e of qualifying) {
     const t = Date.parse(e.occurredAt);
-    const fresh = watermark === null ? t > now - FESTIVAL_MS : t > watermark;
+    const fresh = t > cutoff && t >= bornAt;
     if (fresh && !seen.has(e.id)) started = e;
     seen.add(e.id);
     if (watermark === null || t > watermark) watermark = t;
@@ -393,10 +412,10 @@ export function processEvents(f: FestivalState, events: MilestoneEvent[], now: n
 // ---------- Save ----------
 
 export const FURS = [
-  { id: 'golden', name: 'Golden', fur: '#d99a4e', light: '#f6dfb8', dark: '#5a3418' },
-  { id: 'cream', name: 'Cream', fur: '#eed5ad', light: '#fff6e6', dark: '#6b4b2e' },
-  { id: 'cocoa', name: 'Cocoa', fur: '#8a5a3c', light: '#d9b48f', dark: '#341c0f' },
-  { id: 'silver', name: 'Silver', fur: '#a7a3ad', light: '#ecebef', dark: '#3a3740' },
+  { id: 'golden', fur: '#d99a4e', light: '#f6dfb8', dark: '#5a3418' },
+  { id: 'cream', fur: '#eed5ad', light: '#fff6e6', dark: '#6b4b2e' },
+  { id: 'cocoa', fur: '#8a5a3c', light: '#d9b48f', dark: '#341c0f' },
+  { id: 'silver', fur: '#a7a3ad', light: '#ecebef', dark: '#3a3740' },
 ] as const;
 export type FurId = (typeof FURS)[number]['id'];
 
@@ -405,6 +424,8 @@ export interface Save {
   pet: { name: string; fur: FurId; xp: number; bornAt: number };
   stats: Stats;
   seeds: number;
+  seedsEarned: number;
+  language: Language;
   lastTick: number;
   lastSeen: number;
   hour: HourWindow;
@@ -416,15 +437,18 @@ export interface Save {
   festival: FestivalState;
   away: { passes: number; seeds: number } | null;
   awayPending: { from: number; to: number } | null;
+  awaySettledThrough: number;
   muted: boolean;
 }
 
-export function newSave(name: string, fur: FurId, now: number): Save {
+export function newSave(name: string, fur: FurId, now: number, language: Language = 'en'): Save {
   return {
     v: SAVE_VERSION,
     pet: { name, fur, xp: 0, bornAt: now },
     stats: { hunger: 20, happiness: 80, energy: 80, cleanliness: 90 },
     seeds: 50,
+    seedsEarned: 0,
+    language,
     lastTick: now,
     lastSeen: now,
     hour: { start: now, seeds: 0 },
@@ -436,6 +460,7 @@ export function newSave(name: string, fur: FurId, now: number): Save {
     festival: emptyFestival(),
     away: null,
     awayPending: null,
+    awaySettledThrough: 0,
     muted: true,
   };
 }
@@ -443,12 +468,12 @@ export function newSave(name: string, fur: FurId, now: number): Save {
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /** Validate and normalise untrusted save data (localStorage or an import code). */
-export function parseSave(raw: unknown, now: number): Save | null {
+export function parseSave(raw: unknown, now: number, browserLanguage = 'en'): Save | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, any>;
   if (r.v !== SAVE_VERSION || !r.pet || typeof r.pet.name !== 'string' || !r.stats) return null;
   const fur = FURS.some((f) => f.id === r.pet.fur) ? (r.pet.fur as FurId) : 'golden';
-  const base = newSave(r.pet.name.slice(0, 20) || 'Pip', fur, now);
+  const base = newSave(r.pet.name.slice(0, 20) || translate(languageFor(browserLanguage), 'defaultName'), fur, now);
   const stats = r.stats;
   if (![stats.hunger, stats.happiness, stats.energy, stats.cleanliness].every(isNum)) return null;
   const owned = Array.isArray(r.owned) ? r.owned.filter((id: unknown) => typeof id === 'string' && itemById(id)) : base.owned;
@@ -467,6 +492,8 @@ export function parseSave(raw: unknown, now: number): Save | null {
     pet: { name: base.pet.name, fur, xp: isNum(r.pet.xp) ? Math.max(0, r.pet.xp) : 0, bornAt: isNum(r.pet.bornAt) ? r.pet.bornAt : now },
     stats: clampStats(stats),
     seeds: isNum(r.seeds) ? Math.max(0, Math.floor(r.seeds)) : 0,
+    seedsEarned: isNum(r.seedsEarned) ? Math.max(0, Math.floor(r.seedsEarned)) : 0,
+    language: r.language === 'en' || r.language === 'vi' ? r.language : languageFor(browserLanguage),
     lastTick: isNum(r.lastTick) ? Math.min(r.lastTick, now) : now,
     lastSeen: isNum(r.lastSeen) ? Math.min(r.lastSeen, now) : now,
     hour: r.hour && isNum(r.hour.start) && isNum(r.hour.seeds) ? r.hour : base.hour,
@@ -482,8 +509,38 @@ export function parseSave(raw: unknown, now: number): Save | null {
     festival: f && isNum(f.until) && Array.isArray(f.seenIds) ? { until: f.until, watermark: isNum(f.watermark) ? f.watermark : null, seenIds: f.seenIds, lastType: f.lastType ?? null } : base.festival,
     away: r.away && isNum(r.away.passes) && isNum(r.away.seeds) ? r.away : null,
     awayPending: r.awayPending && isNum(r.awayPending.from) && isNum(r.awayPending.to) ? r.awayPending : null,
+    awaySettledThrough: isNum(r.awaySettledThrough) ? Math.min(now, Math.max(0, r.awaySettledThrough)) : 0,
     muted: r.muted !== false,
   };
+}
+
+/** One credit path for runs, collected away earnings and claimed quests.
+ * The adoption gift and food purchases never count as lifetime earnings. */
+export function earnSeeds(s: Save, amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  const credit = Math.floor(amount);
+  s.seeds += credit;
+  s.seedsEarned += credit;
+}
+
+/** Preserve unresolved away time across reloads and exclude settled windows. */
+export function queueAway(s: Save, from: number, to: number) {
+  const start = Math.max(s.pet.bornAt, s.awaySettledThrough, to - MAX_AWAY_MS, Math.min(from, s.awayPending?.from ?? from));
+  if (to > start) s.awayPending = { from: start, to };
+}
+
+/** Settle only known buckets, exactly once, independently of request order. */
+export function settleAwayEarnings(s: Save, days: ActivityDay[]): boolean {
+  if (!s.awayPending) return false;
+  const { to } = s.awayPending;
+  const from = Math.max(s.awayPending.from, s.awaySettledThrough, s.pet.bornAt);
+  if (to <= from) { s.awayPending = null; return false; }
+  const passes = workBetween(days, from, to);
+  if (passes === null) return false;
+  s.away = { passes: passes + (s.away?.passes ?? 0), seeds: awaySeeds(passes, to - from) + (s.away?.seeds ?? 0) };
+  s.awaySettledThrough = to;
+  s.awayPending = null;
+  return true;
 }
 
 const CODE_PREFIX = 'SQPET1:';
@@ -496,13 +553,13 @@ export function encodeSave(s: Save): string {
   return CODE_PREFIX + btoa(bin);
 }
 
-export function decodeSave(code: string, now: number): Save | null {
+export function decodeSave(code: string, now: number, browserLanguage = 'en'): Save | null {
   const t = code.trim();
   if (!t.startsWith(CODE_PREFIX)) return null;
   try {
     const bin = atob(t.slice(CODE_PREFIX.length));
     const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-    return parseSave(JSON.parse(new TextDecoder().decode(bytes)), now);
+    return parseSave(JSON.parse(new TextDecoder().decode(bytes)), now, browserLanguage);
   } catch {
     return null;
   }
